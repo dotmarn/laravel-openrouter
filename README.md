@@ -201,6 +201,10 @@ $chatData = new ChatData(
         require_parameters: true,
         data_collection: DataCollectionType::ALLOW,
     ),
+    modalities: ['image', 'text'],
+    image_config: new ImageConfigData(
+        aspect_ratio: '16:9',
+    ),
 );
 ```
 

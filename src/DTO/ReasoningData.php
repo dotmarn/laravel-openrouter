@@ -26,7 +26,7 @@ final class ReasoningData extends DataTransferObject
          *
          * @var string|null
          */
-        #[AllowedValues([EffortType::HIGH, EffortType::MEDIUM, EffortType::LOW])]
+        #[AllowedValues([EffortType::HIGH, EffortType::MEDIUM, EffortType::LOW, EffortType::MINIMAL, EffortType::NONE])]
         public ?string $effort = null,
 
         /**

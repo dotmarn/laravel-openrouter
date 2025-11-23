@@ -33,4 +33,18 @@ final readonly class EffortType
      * @var string
      */
     const LOW = 'low';
+
+    /**
+     * Allocates an even smaller portion of tokens (approximately 10% of max_tokens)
+     *
+     * @var string
+     */
+    const MINIMAL = 'minimal';
+
+    /**
+     * Disables reasoning entirely
+     *
+     * @var string
+     */
+    const NONE = 'none';
 }

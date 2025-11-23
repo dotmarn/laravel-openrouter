@@ -156,6 +156,23 @@ final class ChatData extends DataTransferObject
          * @var ReasoningData|null
          */
         public ?ReasoningData $reasoning = null,
+
+        /**
+         * Modalities for the completion request.
+         * Specify both "image" and "text" to enable image generation.
+         * Example: ["image", "text"]
+         *
+         * @var array|null
+         */
+        public ?array $modalities = null,
+
+        /**
+         * Configuration for image generation.
+         * See: https://openrouter.ai/docs/docs/overview/multimodal/image-generation
+         *
+         * @var ImageConfigData|null
+         */
+        public ?ImageConfigData $image_config = null,
     ) {
         $this->validateXorFields($this->messages, $this->prompt);
         $this->validateXorFields($this->model, $this->models);
@@ -234,6 +251,8 @@ final class ChatData extends DataTransferObject
                 'models'             => $this->models,
                 'route'              => $this->route,
                 'provider'           => $this->provider?->convertToArray(),
+                'modalities'         => $this->modalities,
+                'image_config'       => $this->image_config?->convertToArray(),
                 'reasoning'          => $this->reasoning?->convertToArray(),
             ],
             fn($value) => $value !== null

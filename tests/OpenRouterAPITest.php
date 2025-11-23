@@ -9,6 +9,7 @@ use Mockery\MockInterface;
 use MoeMizrak\LaravelOpenrouter\DTO\AudioContentData;
 use MoeMizrak\LaravelOpenrouter\DTO\ChatData;
 use MoeMizrak\LaravelOpenrouter\DTO\CostResponseData;
+use MoeMizrak\LaravelOpenrouter\DTO\ImageConfigData;
 use MoeMizrak\LaravelOpenrouter\DTO\ImageContentPartData;
 use MoeMizrak\LaravelOpenrouter\DTO\ImageUrlData;
 use MoeMizrak\LaravelOpenrouter\DTO\InputAudioData;
@@ -539,6 +540,44 @@ class OpenRouterAPITest extends TestCase
         $this->generalTestAssertions($response);
         $this->assertEquals(RoleType::ASSISTANT, Arr::get($response->choices[0], 'message.role'));
         $this->assertNotNull(Arr::get($response->choices[0], 'message.content'));
+    }
+
+    #[Test]
+    public function it_sends_image_aspect_ratio_for_image_generation_in_the_open_route_api_request()
+    {
+        /* SETUP */
+        $chatData = new ChatData(
+            messages: [
+                new MessageData(
+                    content: 'Generate a beautiful sunset over mountains',
+                    role: RoleType::USER,
+                )
+            ],
+            model: 'google/gemini-2.5-flash-image-preview',
+            modalities: ['image', 'text'],
+            image_config: new ImageConfigData(
+                aspect_ratio: '16:9'
+            )
+        );
+        $mockBody = $this->mockBasicBody();
+        $mockBody['choices'][0]['message']['images'] = [
+            [
+                'image_url' => [
+                    'url' => 'https://example.com/generated-image-1.jpg'
+                ]
+            ],
+        ];
+        $this->mockOpenRouter($mockBody);
+
+        /* EXECUTE */
+        $response = $this->api->chatRequest($chatData);
+
+        /* ASSERT */
+        $this->generalTestAssertions($response);
+        $this->assertNotNull(Arr::get($response->choices[0], 'message.images'));
+        $images = Arr::get($response->choices[0], 'message.images');
+        $this->assertIsArray($images);
+        $this->assertNotEmpty($images);
     }
 
     // test for the audio content
