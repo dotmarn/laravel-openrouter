@@ -10,7 +10,7 @@
   <img src="https://reboosty-reboosty.vercel.app/api?repo_url=https://github.com/moe-mizrak/laravel-openrouter" alt="reboosty" />
 </a>
 
-This Laravel package provides an easy-to-use interface for integrating **[OpenRouter](https://openrouter.ai/)** into your Laravel applications. **OpenRouter** is a unified interface for Large Language Models (LLMs) that allows you to interact with various **[AI models](https://openrouter.ai/docs#models)** through a single API.
+This Laravel package provides an easy-to-use interface for integrating **[OpenRouter](https://openrouter.ai/)** into your Laravel applications. **OpenRouter** is a unified interface for Large Language Models (LLMs) that allows you to interact with various **[AI models](https://openrouter.ai/models)** through a single API.
 
 ## Table of Contents
 
@@ -29,12 +29,10 @@ This Laravel package provides an easy-to-use interface for integrating **[OpenRo
       - [Stream Chat Request](#stream-chat-request)
       - [Maintaining Conversation Continuity](#maintaining-conversation-continuity)
       - [Structured Output](#structured-output)
+      - [Audio Inputs](#audio-inputs)
     - [Cost Request](#cost-request)
     - [Limit Request](#limit-request)
   - [Using OpenRouterRequest Class](#using-openrouterrequest-class)
-    - [Chat Request](#chat-request-1)
-    - [Cost Request](#cost-request-1)
-    - [Limit Request](#limit-request-1)
 - [💫 Contributing](#-contributing)
 - [📜 License](#-license)
 
@@ -87,7 +85,7 @@ OPENROUTER_API_REFERER=
 > [!NOTE]
 >
 > - `OPENROUTER_API_ENDPOINT`: The endpoint URL for the **OpenRouter API** (default: https://openrouter.ai/api/v1/).
-> - `OPENROUTER_API_KEY`: Your **API key** for accessing the OpenRouter API. You can obtain this key from the [OpenRouter dashboard](https://openrouter.ai/keys).
+> - `OPENROUTER_API_KEY`: Your **API key** for accessing the OpenRouter API. You can obtain this key from the [OpenRouter dashboard](https://openrouter.ai/settings/keys).
 > - `OPENROUTER_API_TIMEOUT`: Request timeout in seconds. Increase value to 120 - 180 if you use long-thinking models like openai/o1 (default: 20)
 > - `OPENROUTER_API_TITLE`: Optional - Site URL for rankings on openrouter.ai
 > - `OPENROUTER_API_REFERER`: Optional - Site referer for rankings on openrouter.ai
@@ -112,11 +110,12 @@ The [`ChatData`](src/DTO/ChatData.php) class is used to **encapsulate the data**
 - **usage** (bool|null): A boolean indicating whether to include usage information in the response. Default is `false` because enabling usage accounting will add a few hundred milliseconds to the response as the API calculates token counts and costs.
 - **stop** (array|string|null): A value specifying the stop sequence for the chat generation.
 - **stream** (bool|null): A boolean indicating whether streaming should be enabled or not.
-- **include_reasoning** (bool|null): Whether to return the model's reasoning.
+- **include_reasoning** (bool|null): Whether to return the model's reasoning (Note: this parameter is **deprecated**, use `reasoning` parameter instead. For backward compatibility, package still supports the `include_reasoning` parameter)
+- **reasoning** (ReasoningData|null): An instance of the [`ReasoningData`](src/DTO/ReasoningData.php) class for reasoning configuration. It provides a transparent look into the reasoning steps taken by a model.
 
 #### LLM Parameters
 
-These properties control various aspects of the generated response (more [info](https://openrouter.ai/docs#parameters)):
+These properties control various aspects of the generated response (more [info](https://openrouter.ai/docs/api-reference/parameters)):
 
 - **max_tokens** (int|null): The maximum number of tokens that can be generated in the completion. Default is 1024.
 - **temperature** (float|null): A value between 0 and 2 controlling the randomness of the output.
@@ -175,7 +174,10 @@ $chatData = new ChatData(
     usage: true,
     stop: ['stop_token'],
     stream: true,
-    include_reasoning: true,
+    reasoning: new ReasoningData(
+        effort: EffortType::HIGH,
+        exclude: false,
+    ),
     max_tokens: 1024,
     temperature: 0.7,
     top_p: 0.9,
@@ -199,6 +201,10 @@ $chatData = new ChatData(
         require_parameters: true,
         data_collection: DataCollectionType::ALLOW,
     ),
+    modalities: ['image', 'text'],
+    image_config: new ImageConfigData(
+        aspect_ratio: '16:9',
+    ),
 );
 ```
 
@@ -212,7 +218,7 @@ To send a chat request, create an instance of [`ChatData`](src/DTO/ChatData.php)
 
 ```php
 $content = 'Tell me a story about a rogue AI that falls in love with its creator.'; // Your desired prompt or content
-$model = 'mistralai/mistral-7b-instruct:free'; // The OpenRouter model you want to use (https://openrouter.ai/docs#models)
+$model = 'mistralai/mistral-7b-instruct:free'; // The OpenRouter model you want to use (https://openrouter.ai/models)
 $messageData = new MessageData(
     content: $content,
     role: RoleType::USER,
@@ -227,6 +233,9 @@ $chatData = new ChatData(
 );
 
 $chatResponse = LaravelOpenRouter::chatRequest($chatData);
+
+// You can convert the response `toArray` if needed (It converts ResponseData DTO to array including the nested DTOs while filtering null values)
+$responseArray = $chatResponse->toArray();
 ```
 
 - #### Stream Chat Request
@@ -235,7 +244,7 @@ $chatResponse = LaravelOpenRouter::chatRequest($chatData);
 
 ```php
 $content = 'Tell me a story about a rogue AI that falls in love with its creator.'; // Your desired prompt or content
-$model = 'mistralai/mistral-7b-instruct:free'; // The OpenRouter model you want to use (https://openrouter.ai/docs#models)
+$model = 'mistralai/mistral-7b-instruct:free'; // The OpenRouter model you want to use (https://openrouter.ai/models)
 $messageData = new MessageData(
     content: $content,
     role: RoleType::USER,
@@ -322,7 +331,7 @@ data: {"id":"gen-eWgGaEbIzFq4ziGGIsIjyRtLda54","model":"mistralai/mistral-7b-ins
 
 : OPENROUTER PROCESSING\n
 \n
-data: {"id":"gen-C6Xym94jZcvJv2vVpxYSyw2tV1fR","model":"mistralai/mistral-7b-instruct:free","object":"chat.completion.chunk","created":1718887189,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}],"usage":{"prompt_tokens":23,"completion_tokens":100,"total_tokens":123,"cost":197}}\n
+data: {"id":"gen-C6Xym94jZcvJv2vVpxYSyw2tV1fR","model":"mistralai/mistral-7b-instruct:free","object":"chat.completion.chunk","created":1718887189,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}],"usage":{"prompt_tokens":23,"completion_tokens":100,"total_tokens":123,"cost":0.00000114}}\n
 \n
 data: [DONE]\n
 ```
@@ -388,7 +397,7 @@ This is the sample response after filterStreamingResponse:
             prompt_tokens: 23,
             completion_tokens: 100,
             total_tokens: 123,
-            cost: 197
+            cost: 0.00000114
         ),
     ),
 ]
@@ -452,7 +461,7 @@ $content = Arr::get($response->choices[0], 'message.content');
 
 - #### Structured Output
 
-  (Please also refer to [OpenRouter Document Structured Output](https://openrouter.ai/docs/structured-outputs) for models supporting structured output, also for more details)
+  (Please also refer to [OpenRouter Document Structured Output](https://openrouter.ai/docs/features/structured-outputs) for models supporting structured output, also for more details)
 
 If you want to receive the response in a structured format, you can specify the `type` property for `response_format` ([ResponseFormatData](src/DTO/ResponseFormatData.php)) as `json_object` in the [`ChatData`](src/DTO/ChatData.php) object.
 
@@ -532,13 +541,58 @@ $chatData = new ChatData(
 > [!TIP]
 > You can also use **prompt engineering** to obtain structured output and control the format of responses.
 
+- ####  Audio Inputs
+  (Please also refer to [OpenRouter Document Audio Inputs](https://openrouter.ai/docs/features/multimodal/audio) for models supporting audio inputs, also for more details)
+
+Audio input is supported by some models in OpenRouter. You can provide audio input by using the `AudioContentData` DTO class as following:
+
+```php
+$model = 'mistralai/voxtral-small-24b-2507'; // Audio input supported models: https://openrouter.ai/models?fmt=cards&input_modalities=audio
+$data = base64_encode('path/of/audio/file.mp3'); // Base64-encoded audio data
+
+$audioContentData = new AudioContentData(
+    type: AudioContentData::ALLOWED_TYPE, // it can only take input_audio for audio content
+    input_audio: new InputAudioData(
+        data: $data,
+        format: AudioFormatType::MP3, // Supported formats: mp3, wav
+    ),
+);
+
+$textContentData = new TextContentData(
+    type: TextContentData::ALLOWED_TYPE,
+    text: 'Please transcribe this audio file.',
+);
+
+$messageData = new MessageData(
+    content: [
+        $textContentData,
+        $audioContentData,
+    ],
+    role: RoleType::USER,
+);
+
+$chatData = new ChatData(
+    messages: [
+        $messageData,
+    ],
+    model: $model,
+);
+
+$response = LaravelOpenRouter::chatRequest($chatData);
+```
+
+> [!NOTE]
+> Only `mp3` and `wav` formats are supported for audio inputs.
+> 
+> And make sure to provide valid `base64-encoded` audio data.
+
 #### Cost Request
 
 To retrieve the cost of a generation, first make a `chat request` and obtain the `generationId`. Then, pass the generationId to the `costRequest` method:
 
 ```php
 $content = 'Tell me a story about a rogue AI that falls in love with its creator.'; // Your desired prompt or content
-$model = 'mistralai/mistral-7b-instruct:free'; // The OpenRouter model you want to use (https://openrouter.ai/docs#models)
+$model = 'mistralai/mistral-7b-instruct:free'; // The OpenRouter model you want to use (https://openrouter.ai/models)
 $messageData = new MessageData(
     content: $content,
     role   : RoleType::USER,
@@ -556,6 +610,9 @@ $chatResponse = LaravelOpenRouter::chatRequest($chatData);
 $generationId = $chatResponse->id; // generation id which will be passed to costRequest
 
 $costResponse = LaravelOpenRouter::costRequest($generationId);
+
+// You can convert the response `toArray` if needed (It converts CostResponseData DTO to array while filtering null values)
+$responseArray = $costResponse->toArray();
 ```
 
 #### Limit Request
@@ -564,6 +621,9 @@ To retrieve rate limit and credits left on the API key:
 
 ```php
 $limitResponse = LaravelOpenRouter::limitRequest();
+
+// You can convert the response `toArray` if needed (It converts LimitResponseData DTO to array including the nested DTOs while filtering null values)
+$responseArray = $limitResponse->toArray();
 ```
 
 ### Using OpenRouterRequest Class
@@ -572,62 +632,20 @@ You can also inject the [`OpenRouterRequest`](src/OpenRouterRequest.php) class i
 
 ```php
 public function __construct(protected OpenRouterRequest $openRouterRequest) {}
-```
 
-#### Chat Request
-
-Similarly, to send a chat request, create an instance of [`ChatData`](src/DTO/ChatData.php) and pass it to the `chatRequest` method:
-
-```php
-$content = 'Tell me a story about a rogue AI that falls in love with its creator.'; // Your desired prompt or content
-$model = 'mistralai/mistral-7b-instruct:free'; // The OpenRouter model you want to use (https://openrouter.ai/docs#models)
-$messageData = new MessageData(
-    content: $content,
-    role   : RoleType::USER,
-);
-
-$chatData = new ChatData(
-    messages: [
-        $messageData,
-    ],
-    model: $model,
-    max_tokens: 100,
-);
-
+/*
+ * Similarly, you can use OpenRouterRequest class methods as below:
+ */
+// Chat Request
 $response = $this->openRouterRequest->chatRequest($chatData);
-```
 
-#### Cost Request
+// Stream Chat Request
+$streamResponse = $this->openRouterRequest->chatStreamRequest($chatData);
 
-Similarly, to retrieve the cost of a generation, create a `chat request` to obtain the `generationId`, then pass the `generationId` to the `costRequest` method:
-
-```php
-$content = 'Tell me a story about a rogue AI that falls in love with its creator.';
-$model = 'mistralai/mistral-7b-instruct:free'; // The OpenRouter model you want to use (https://openrouter.ai/docs#models)
-$messageData = new MessageData(
-    content: $content,
-    role   : RoleType::USER,
-);
-
-$chatData = new ChatData(
-    messages: [
-        $messageData,
-    ],
-    model: $model,
-    max_tokens: 100,
-);
-
-$chatResponse = $this->openRouterRequest->chatRequest($chatData);
-$generationId = $chatResponse->id; // generation id which will be passed to costRequest
-
+// Cost Request
 $costResponse = $this->openRouterRequest->costRequest($generationId);
-```
 
-#### Limit Request
-
-Similarly, to retrieve rate limit and credits left on the API key:
-
-```php
+// Limit Request
 $limitResponse = $this->openRouterRequest->limitRequest();
 ```
 
