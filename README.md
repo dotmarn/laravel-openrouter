@@ -286,6 +286,56 @@ while (! $stream->eof()) {
 You do **not** need to specify `'stream' = true` in ChatData since `chatStreamRequest` does it for you.
 
 <details>
+<summary>Streaming usage example:</summary>
+
+```php
+Route::get('/test/stream', function () {
+    $content = 'Tell me a story about a rogue AI that falls in love with its creator.';
+    $model = 'deepseek/deepseek-chat-v3.1';
+    
+    $messageData = new MessageData(
+        content: $content,
+        role: RoleType::USER,
+    );
+    
+    $chatData = new ChatData(
+        messages: [$messageData],
+        model: $model,
+        max_tokens: 1000,
+    );
+    
+    return response()->stream(function () use ($chatData) {
+        $promise = LaravelOpenRouter::chatStreamRequest($chatData);
+        $stream = $promise->wait();
+        
+        while (!$stream->eof()) {
+            $rawResponse = $stream->read(1024);
+            
+            // 1) Print raw streamed response as it becomes available:
+            echo $rawResponse;
+            
+            /*
+             * 2) Optionally you can use filterStreamingResponse to filter raw streamed response, and map it into array of responseData DTO same as chatRequest response format.
+             */
+            $response = LaravelOpenRouter::filterStreamingResponse($rawResponse);
+            
+            foreach ($response as $responseData) {
+                // Process each responseData as needed
+                echo json_encode($responseData->toArray()) . PHP_EOL;
+            }
+            
+            flush();
+        }
+    }, 200, [
+        'Content-Type' => 'text/plain; charset=utf-8',
+    ]);
+});
+```
+
+</details>
+
+<details>
+<summary>Sample rawResponse:</summary>
 
 This is the expected sample rawResponse (raw response returned from OpenRouter stream chunk) `$rawResponse`:
 
@@ -378,7 +428,7 @@ This is the sample response after filterStreamingResponse:
         usage: null
     ),
     ...
-    new ResponseData(
+    ResponseData(
         id: 'gen-QcWgjEtiEDNHgomV2jjoQpCZlkRZ',
         model: 'mistralai/mistral-7b-instruct:free',
         object: 'chat.completion.chunk',
