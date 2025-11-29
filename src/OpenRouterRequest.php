@@ -93,7 +93,8 @@ final class OpenRouterRequest extends OpenRouterAPI
         // Options for the Guzzle request
         $options = [
             'json'    => $chatData,
-            'headers' => $headers
+            'headers' => $headers,
+            'stream' => true
         ];
 
         // Send POST request to the OpenRouter API chat completion endpoint and get the streaming response.
