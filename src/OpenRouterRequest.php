@@ -154,4 +154,15 @@ final class OpenRouterRequest extends OpenRouterAPI
 
         return $this->openRouterHelper->formLimitResponse($response);
     }
+
+    /**
+     * Filters streaming response string and maps it into an array of ResponseData.
+     *
+     * @param string $streamingResponse
+     * @return array
+     */
+    public function filterStreamingResponse(string $streamingResponse): array
+    {
+        return $this->openRouterHelper->filterStreamingResponse($streamingResponse);
+    }
 }
