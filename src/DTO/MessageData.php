@@ -70,9 +70,11 @@ final class MessageData extends DataTransferObject
             [
                 'content'   => is_array($this->content)
                     ? array_map(function ($value) {
-                        if ($value instanceof TextContentData) {
-                            return $value->convertToArray();
-                        } elseif ($value instanceof ImageContentPartData) {
+                        if ($value instanceof TextContentData
+                            || $value instanceof ImageContentPartData
+                            || $value instanceof AudioContentData
+                            || $value instanceof FileContentData
+                        ) {
                             return $value->convertToArray();
                         } else {
                             return $value;

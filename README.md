@@ -29,6 +29,7 @@ This Laravel package provides an easy-to-use interface for integrating **[OpenRo
       - [Stream Chat Request](#stream-chat-request)
       - [Maintaining Conversation Continuity](#maintaining-conversation-continuity)
       - [Structured Output](#structured-output)
+      - [File/Document Inputs](#filedocument-inputs)
       - [Audio Inputs](#audio-inputs)
     - [Cost Request](#cost-request)
     - [Limit Request](#limit-request)
@@ -590,6 +591,76 @@ $chatData = new ChatData(
 
 > [!TIP]
 > You can also use **prompt engineering** to obtain structured output and control the format of responses.
+
+- #### File/Document Inputs
+
+  (Please also refer to [OpenRouter Document File Inputs](https://openrouter.ai/docs/guides/overview/multimodal/pdfs) for more details)
+
+You can provide file input by using the `FileContentData` DTO class as following:
+```php
+$model = 'anthropic/claude-3.5-sonnet';
+
+// Plugin configuration for file parsing, optional
+$plugins = [
+    new PluginData(
+        id: 'file-parser',
+        pdf: [
+            'engine' => 'pdf-text', // Supported engines: pdf-text, mistral-ocr and native
+        ],
+    ),
+];
+
+// For the publicly accessible PDFs
+$fileContentData = new FileContentData(
+    type: FileContentData::ALLOWED_TYPE,
+    file: new FileUrlData(
+        file_data: 'https://example.com/report.pdf',
+        filename: 'quarterly-report.pdf',
+    ),
+);
+
+$textContentData = new TextContentData(
+    type: TextContentData::ALLOWED_TYPE,
+    text: 'Please summarize this document.',
+);
+
+$messageData = new MessageData(
+    content: [
+        $textContentData,
+        $fileContentData,
+    ],
+    role: RoleType::USER,
+);
+
+$chatData = new ChatData(
+    messages: [$messageData],
+    model: $model,
+    plugins: $plugins,
+);
+
+$response = LaravelOpenRouter::chatRequest($chatData);
+```
+
+> [!NOTE]
+> - `plugins` parameter in ChatData is optional.
+> - If you don’t explicitly specify an **engine**, OpenRouter will default first to the model’s native file processing capabilities, and if that’s not available, it will use the "mistral-ocr" engine.
+
+*Using base64-encoded files*: 
+```php
+$base64Data = base64_encode(file_get_contents('/path/to/document.pdf'));
+
+$fileContentData = new FileContentData(
+    type: FileContentData::ALLOWED_TYPE,
+    file: new FileUrlData(
+        file_data: "data:application/pdf;base64,{$base64Data}",
+        filename: 'document.pdf',
+    ),
+);
+```
+
+> [!TIP]
+> - **File input** feature works on any model on OpenRouter.
+> - The `filename` parameter is optional but recommended for context.
 
 - ####  Audio Inputs
   (Please also refer to [OpenRouter Document Audio Inputs](https://openrouter.ai/docs/features/multimodal/audio) for models supporting audio inputs, also for more details)

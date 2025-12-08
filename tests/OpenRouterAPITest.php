@@ -9,12 +9,15 @@ use Mockery\MockInterface;
 use MoeMizrak\LaravelOpenrouter\DTO\AudioContentData;
 use MoeMizrak\LaravelOpenrouter\DTO\ChatData;
 use MoeMizrak\LaravelOpenrouter\DTO\CostResponseData;
+use MoeMizrak\LaravelOpenrouter\DTO\FileContentData;
+use MoeMizrak\LaravelOpenrouter\DTO\FileUrlData;
 use MoeMizrak\LaravelOpenrouter\DTO\ImageConfigData;
 use MoeMizrak\LaravelOpenrouter\DTO\ImageContentPartData;
 use MoeMizrak\LaravelOpenrouter\DTO\ImageUrlData;
 use MoeMizrak\LaravelOpenrouter\DTO\InputAudioData;
 use MoeMizrak\LaravelOpenrouter\DTO\LimitResponseData;
 use MoeMizrak\LaravelOpenrouter\DTO\MessageData;
+use MoeMizrak\LaravelOpenrouter\DTO\PluginData;
 use MoeMizrak\LaravelOpenrouter\DTO\ProviderPreferencesData;
 use MoeMizrak\LaravelOpenrouter\DTO\ReasoningData;
 use MoeMizrak\LaravelOpenrouter\DTO\ResponseData;
@@ -535,6 +538,52 @@ class OpenRouterAPITest extends TestCase
 
         /* EXECUTE */
         $response = $this->api->chatRequest($chatData);
+
+        /* ASSERT */
+        $this->generalTestAssertions($response);
+        $this->assertEquals(RoleType::ASSISTANT, Arr::get($response->choices[0], 'message.role'));
+        $this->assertNotNull(Arr::get($response->choices[0], 'message.content'));
+    }
+
+    #[Test]
+    public function it_successfully_sends_file_content_in_messages_in_the_open_route_api_request()
+    {
+        /* SETUP */
+        $plugins = [
+            new PluginData(
+                id: 'file-parser',
+                pdf: [
+                    'engine' => 'pdf-text',
+                ],
+            ),
+        ];
+        $fileContentData = new FileContentData(
+            type: FileContentData::ALLOWED_TYPE,
+            file: new FileUrlData(
+                file_data: 'https://arxiv.org/pdf/1706.03762',
+                filename: 'document.pdf',
+            ),
+        );
+        $textContentData = new TextContentData(
+            type: TextContentData::ALLOWED_TYPE,
+            text: 'Please summarize this document.',
+        );
+        $messageData = new MessageData(
+            content: [
+                $textContentData,
+                $fileContentData,
+            ],
+            role: RoleType::USER,
+        );
+        $chatData = new ChatData(
+            messages: [$messageData],
+            model: $this->model,
+            plugins: $plugins,
+        );
+        $this->mockOpenRouter($this->mockBasicBody());
+
+        /* EXECUTE */
+        $response = LaravelOpenRouter::chatRequest($chatData);
 
         /* ASSERT */
         $this->generalTestAssertions($response);

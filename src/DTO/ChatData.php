@@ -120,6 +120,13 @@ final class ChatData extends DataTransferObject
         public ?array $transforms = null,
 
         /**
+         * Plugins to use for the request e.g. for web search or pdf file input.
+         *
+         * @var PluginData[]|null
+         */
+        public ?array $plugins = null,
+
+        /**
          * The models array, which lets you automatically try other models if the primary model's providers are down,
          * rate-limited, or refuse to reply due to content moderation required by all providers.
          *
@@ -248,6 +255,15 @@ final class ChatData extends DataTransferObject
                     : null,
                 'logit_bias'         => $this->logit_bias,
                 'transforms'         => $this->transforms,
+                'plugins'            => ! is_null($this->plugins)
+                    ? array_map(function ($value) {
+                        if ($value instanceof PluginData) {
+                            return $value->convertToArray();
+                        } else {
+                            return $value;
+                        }
+                    }, $this->plugins)
+                    : null,
                 'models'             => $this->models,
                 'route'              => $this->route,
                 'provider'           => $this->provider?->convertToArray(),
