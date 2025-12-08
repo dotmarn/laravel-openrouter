@@ -1,10 +1,13 @@
 <?php
 
-namespace MoeMizrak\LaravelOpenRouter\DTO;
+declare(strict_types=1);
+
+namespace MoeMizrak\LaravelOpenrouter\DTO;
+
+use MoeMizrak\LaravelOpenrouter\Rules\AllowedValues;
 
 /**
  * DTO for file/document content in messages.
- * Supports PDF, DOCX, and other document types for vision-capable models.
  *
  * Class FileContentData
  *
@@ -17,13 +20,17 @@ final class FileContentData extends DataTransferObject
      */
     public const ALLOWED_TYPE = 'file';
 
+    /**
+     * @inheritDoc
+     */
     public function __construct(
         /**
-         * Content type identifier - must be 'file'.
+         * Type of the content. (i.e. file)
          *
          * @var string
          */
-        public string $type,
+        #[AllowedValues([self::ALLOWED_TYPE])]
+        public string $type = self::ALLOWED_TYPE,
 
         /**
          * File data object containing URL or base64 data.
@@ -31,5 +38,21 @@ final class FileContentData extends DataTransferObject
          * @var FileUrlData
          */
         public FileUrlData $file,
-    ) {}
+    ) {
+        parent::__construct(...func_get_args());
+    }
+
+    /**
+     * @return array
+     */
+    public function convertToArray(): array
+    {
+        return array_filter(
+            [
+                'type' => $this->type,
+                'file' => $this->file?->convertToArray(),
+            ],
+            fn($value) => $value !== null
+        );
+    }
 }

@@ -594,17 +594,27 @@ $chatData = new ChatData(
 
 - #### File/Document Inputs
 
-  (Please also refer to [OpenRouter Documentation](https://openrouter.ai/docs/features/multimodal) for models supporting file/document inputs)
+  (Please also refer to [OpenRouter Document File Inputs](https://openrouter.ai/docs/guides/overview/multimodal/pdfs) for more details)
 
-File/document input is supported by some models in OpenRouter (e.g., Claude 3.x, Gemini 1.5). You can provide file input by using the `FileContentData` DTO class as following:
+You can provide file input by using the `FileContentData` DTO class as following:
 ```php
-$model = 'anthropic/claude-3.5-sonnet'; // Document-capable model
+$model = 'anthropic/claude-3.5-sonnet';
 
-// From URL
+// Plugin configuration for file parsing, optional
+$plugins = [
+    new PluginData(
+        id: 'file-parser',
+        pdf: [
+            'engine' => 'pdf-text', // Supported engines: pdf-text, mistral-ocr and native
+        ],
+    ),
+];
+
+// For the publicly accessible PDFs
 $fileContentData = new FileContentData(
     type: FileContentData::ALLOWED_TYPE,
     file: new FileUrlData(
-        url: 'https://example.com/report.pdf',
+        file_data: 'https://example.com/report.pdf',
         filename: 'quarterly-report.pdf',
     ),
 );
@@ -625,48 +635,31 @@ $messageData = new MessageData(
 $chatData = new ChatData(
     messages: [$messageData],
     model: $model,
+    plugins: $plugins,
 );
 
 $response = LaravelOpenRouter::chatRequest($chatData);
 ```
 
-#### Using Base64-encoded Files
+> [!NOTE]
+> - `plugins` parameter in ChatData is optional.
+> - If you don’t explicitly specify an **engine**, OpenRouter will default first to the model’s native file processing capabilities, and if that’s not available, it will use the "mistral-ocr" engine.
+
+*Using base64-encoded files*: 
 ```php
 $base64Data = base64_encode(file_get_contents('/path/to/document.pdf'));
 
 $fileContentData = new FileContentData(
     type: FileContentData::ALLOWED_TYPE,
     file: new FileUrlData(
-        url: "data:application/pdf;base64,{$base64Data}",
+        file_data: "data:application/pdf;base64,{$base64Data}",
         filename: 'document.pdf',
     ),
 );
 ```
 
-#### Supported File Formats
-
-The `FileFormatType` enum provides MIME type helpers for common formats:
-
-| Format | Enum Value | MIME Type |
-|--------|------------|-----------|
-| PDF | `FileFormatType::PDF` | `application/pdf` |
-| DOCX | `FileFormatType::DOCX` | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` |
-| DOC | `FileFormatType::DOC` | `application/msword` |
-| TXT | `FileFormatType::TXT` | `text/plain` |
-| CSV | `FileFormatType::CSV` | `text/csv` |
-| XLSX | `FileFormatType::XLSX` | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` |
-| XLS | `FileFormatType::XLS` | `application/vnd.ms-excel` |
-| HTML | `FileFormatType::HTML` | `text/html` |
-| Markdown | `FileFormatType::MD` | `text/markdown` |
-```php
-use MoeMizrak\LaravelOpenRouter\Types\FileFormatType;
-
-$mimeType = FileFormatType::PDF->mimeType(); // 'application/pdf'
-```
-
-> [!TIP] 
-> - Not all models support file/document inputs. Check the model's capabilities on OpenRouter.
-> - Ensure base64-encoded data includes the correct MIME type in the data URI.
+> [!TIP]
+> - **File input** feature works on any model on OpenRouter.
 > - The `filename` parameter is optional but recommended for context.
 
 - ####  Audio Inputs

@@ -1,8 +1,8 @@
 <?php
 
-namespace MoeMizrak\LaravelOpenRouter\DTO;
+declare(strict_types=1);
 
-use MoeMizrak\LaravelOpenrouter\DTO\DataTransferObject;
+namespace MoeMizrak\LaravelOpenrouter\DTO;
 
 /**
  * DTO for file URL/data wrapper.
@@ -14,6 +14,9 @@ use MoeMizrak\LaravelOpenrouter\DTO\DataTransferObject;
  */
 final class FileUrlData extends DataTransferObject
 {
+    /**
+     * @inheritDoc
+     */
     public function __construct(
         /**
          * File URL or base64 data URI.
@@ -23,7 +26,7 @@ final class FileUrlData extends DataTransferObject
          *
          * @var string
          */
-        public string $url,
+        public string $file_data,
 
         /**
          * Optional filename for context.
@@ -31,5 +34,21 @@ final class FileUrlData extends DataTransferObject
          * @var string|null
          */
         public ?string $filename = null,
-    ) {}
+    ) {
+        parent::__construct(...func_get_args());
+    }
+
+    /**
+     * @return array
+     */
+    public function convertToArray(): array
+    {
+        return array_filter(
+            [
+                'file_data' => $this->file_data,
+                'filename' => $this->filename,
+            ],
+            fn($value) => $value !== null
+        );
+    }
 }
