@@ -546,6 +546,89 @@ class OpenRouterAPITest extends TestCase
     }
 
     #[Test]
+    public function it_successfully_makes_web_search_in_the_open_route_api_request()
+    {
+        /* SETUP */
+        $plugins = [
+            new PluginData(
+                id: 'web',
+                max_results: 3,
+            ),
+        ];
+        $chatData = new ChatData(
+            messages: [
+                new MessageData(
+                    content: 'What are the latest developments in AI?',
+                    role: RoleType::USER,
+                ),
+            ],
+            model: $this->model,
+            plugins: $plugins,
+        );
+        $mockBody = $this->mockBasicBody();
+        $mockBody['choices'][0]['message']['annotations'] = [
+            [
+                'type' => 'url_citation',
+                'url_citation' => [
+                    'url' => 'https://example.com/ai-developments',
+                    'title' => 'Latest Developments in AI',
+                    'content' => 'This article discusses the latest advancements in artificial intelligence...',
+                ],
+            ],
+        ];
+        $this->mockOpenRouter($mockBody);
+
+        /* EXECUTE */
+        $response = LaravelOpenRouter::chatRequest($chatData);
+
+        /* ASSERT */
+        $this->generalTestAssertions($response);
+        $this->assertNotNull(Arr::get($response->choices[0], 'message.annotations'));
+        $this->assertEquals('url_citation', Arr::get($response->choices[0], 'message.annotations.0.type'));
+        $this->assertNotNull(Arr::get($response->choices[0], 'message.annotations.0.url_citation.url'));
+        $this->assertNotNull(Arr::get($response->choices[0], 'message.annotations.0.url_citation.title'));
+        $this->assertNotNull(Arr::get($response->choices[0], 'message.annotations.0.url_citation.content'));
+    }
+
+    #[Test]
+    public function it_successfully_makes_web_search_with_online_model_in_the_open_route_api_request()
+    {
+        /* SETUP */
+        $chatData = new ChatData(
+            messages: [
+                new MessageData(
+                    content: 'What are the latest developments in AI?',
+                    role: RoleType::USER,
+                ),
+            ],
+            model: 'mistralai/mistral-7b-instruct:free:online',
+        );
+        $mockBody = $this->mockBasicBody();
+        $mockBody['choices'][0]['message']['annotations'] = [
+            [
+                'type' => 'url_citation',
+                'url_citation' => [
+                    'url' => 'https://example.com/ai-developments',
+                    'title' => 'Latest Developments in AI',
+                    'content' => 'This article discusses the latest advancements in artificial intelligence...',
+                ],
+            ],
+        ];
+        $this->mockOpenRouter($mockBody);
+
+        /* EXECUTE */
+        $response = LaravelOpenRouter::chatRequest($chatData);
+
+        /* ASSERT */
+        $this->generalTestAssertions($response);
+        $this->assertNotNull(Arr::get($response->choices[0], 'message.annotations'));
+        $this->assertEquals('url_citation', Arr::get($response->choices[0], 'message.annotations.0.type'));
+        $this->assertNotNull(Arr::get($response->choices[0], 'message.annotations.0.url_citation.url'));
+        $this->assertNotNull(Arr::get($response->choices[0], 'message.annotations.0.url_citation.title'));
+        $this->assertNotNull(Arr::get($response->choices[0], 'message.annotations.0.url_citation.content'));
+    }
+
+    #[Test]
     public function it_successfully_sends_file_content_in_messages_in_the_open_route_api_request()
     {
         /* SETUP */

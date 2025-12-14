@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MoeMizrak\LaravelOpenrouter\DTO;
 
 use MoeMizrak\LaravelOpenrouter\Rules\AllowedValues;
+use MoeMizrak\LaravelOpenrouter\Types\SearchContextSizeType;
 
 /**
  * DTO for web search options configuration.
@@ -28,9 +29,22 @@ final class WebSearchOptionsData extends DataTransferObject
          *
          * @var string|null
          */
-        #[AllowedValues(['low', 'medium', 'high'])]
+        #[AllowedValues([SearchContextSizeType::LOW, SearchContextSizeType::MEDIUM, SearchContextSizeType::HIGH])]
         public ?string $search_context_size = null,
     ) {
-        parent::__construct();
+        parent::__construct(...func_get_args());
+    }
+
+    /**
+     * @return array
+     */
+    public function convertToArray(): array
+    {
+        return array_filter(
+            [
+                'search_context_size' => $this->search_context_size,
+            ],
+            fn($value) => $value !== null
+        );
     }
 }
