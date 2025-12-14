@@ -50,6 +50,16 @@ final class MessageData extends DataTransferObject
          */
         public ?array $toolCalls = null,
 
+
+        /**
+         * Annotations containing URL citations from web search results.
+         * Present in assistant messages when web search is enabled.
+         * For more info: https://openrouter.ai/docs/guides/features/web-search#parsing-web-search-results
+         *
+         * @var AnnotationData[]|null
+         */
+        public ?array $annotations = null,
+
         /**
          * An optional name for the participant. Provides the model information to differentiate between participants of the same role.
          * e.g. name: "Moe"
@@ -70,7 +80,8 @@ final class MessageData extends DataTransferObject
             [
                 'content'   => is_array($this->content)
                     ? array_map(function ($value) {
-                        if ($value instanceof TextContentData
+                        if (
+                            $value instanceof TextContentData
                             || $value instanceof ImageContentPartData
                             || $value instanceof AudioContentData
                             || $value instanceof FileContentData
@@ -79,13 +90,13 @@ final class MessageData extends DataTransferObject
                         } else {
                             return $value;
                         }
-                        }, $this->content)
+                    }, $this->content)
                     : $this->content,
                 'role'      => $this->role,
                 'toolCalls' => ! is_null($this->toolCalls)
                     ? array_map(function ($value) {
                         return $value->convertToArray();
-                        }, $this->toolCalls)
+                    }, $this->toolCalls)
                     : null,
                 'name'      => $this->name,
             ],
@@ -93,3 +104,4 @@ final class MessageData extends DataTransferObject
         );
     }
 }
+

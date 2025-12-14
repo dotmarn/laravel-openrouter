@@ -156,6 +156,16 @@ final class ChatData extends DataTransferObject
          */
         public ?bool $include_reasoning = false,
 
+
+        /**
+         * Web search options for configuring native search behavior.
+         * Only applies when using native search (OpenAI, Anthropic, Perplexity, xAI models).
+         * For more info: https://openrouter.ai/docs/guides/features/web-search
+         *
+         * @var WebSearchOptionsData|null
+         */
+        public ?WebSearchOptionsData $web_search_options = null,
+
         /**
          * For models that support it, the OpenRouter API can return Reasoning Tokens, also known as thinking tokens.
          * See: https://openrouter.ai/docs/use-cases/reasoning-tokens
