@@ -127,6 +127,15 @@ final class ChatData extends DataTransferObject
         public ?array $plugins = null,
 
         /**
+         * Web search options for configuring native search behavior.
+         * Only applies when using native search (OpenAI, Anthropic, Perplexity, xAI models).
+         * For more info: https://openrouter.ai/docs/guides/features/web-search
+         *
+         * @var WebSearchOptionsData|null
+         */
+        public ?WebSearchOptionsData $web_search_options = null,
+
+        /**
          * The models array, which lets you automatically try other models if the primary model's providers are down,
          * rate-limited, or refuse to reply due to content moderation required by all providers.
          *
@@ -264,6 +273,7 @@ final class ChatData extends DataTransferObject
                         }
                     }, $this->plugins)
                     : null,
+                'web_search_options' => $this->web_search_options?->convertToArray(),
                 'models'             => $this->models,
                 'route'              => $this->route,
                 'provider'           => $this->provider?->convertToArray(),

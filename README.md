@@ -29,6 +29,7 @@ This Laravel package provides an easy-to-use interface for integrating **[OpenRo
       - [Stream Chat Request](#stream-chat-request)
       - [Maintaining Conversation Continuity](#maintaining-conversation-continuity)
       - [Structured Output](#structured-output)
+      - [Web Search](#web-search)
       - [File/Document Inputs](#filedocument-inputs)
       - [Audio Inputs](#audio-inputs)
     - [Cost Request](#cost-request)
@@ -141,6 +142,8 @@ Only natively suported by OpenAI models. For others, we submit a YAML-formatted 
 #### OpenRouter-only parameters
 
 - **transforms** (array|null): An array for configuring prompt transforms.
+- **plugins** (array|null): An array of [`PluginData`](src/DTO/PluginData.php) objects for configuring plugins such as `web search` or `file parsing`.
+- **web_search_options** (WebSearchOptionsData|null): An instance of the [`WebSearchOptionsData`](src/DTO/WebSearchOptionsData.php) DTO object for configuring web search (e.g. `search_context_size: SearchContextSizeType::LOW`).
 - **models** (array|null): An array of models to automatically try if the primary model is unavailable. This field is XOR-gated with the `model` field.
 - **route** (string|null): A value specifying the route type (e.g., `RouteType::FALLBACK`).
 - **provider** (ProviderPreferencesData|null): An instance of the [`ProviderPreferencesData`](src/DTO/ProviderPreferencesData.php) DTO object for configuring provider preferences.
@@ -195,6 +198,16 @@ $chatData = new ChatData(
         '50256' => -100,
     ],
     transforms: ['middle-out'],
+    plugins: [
+        new PluginData(
+            id: 'web',
+            max_results: 3,
+            engine: 'native',
+        ),
+    ],
+    web_search_options: new WebSearchOptionsData(
+        search_context_size: SearchContextSizeType::MEDIUM,
+    ),
     models: ['model1', 'model2'],
     route: RouteType::FALLBACK,
     provider: new ProviderPreferencesData(
@@ -591,6 +604,70 @@ $chatData = new ChatData(
 
 > [!TIP]
 > You can also use **prompt engineering** to obtain structured output and control the format of responses.
+
+- #### Web Search
+    (Please also refer to [OpenRouter Document Web Search](https://openrouter.ai/docs/guides/features/plugins/web-search) for more details)
+
+**Web Search** feature works on any model on OpenRouter.
+
+You can incorporate relevant web search results for any model on OpenRouter by activating and customizing the web plugin, or by appending :online to the model slug.
+ e.g., `model: "openai/gpt-4o:online"` or `model: "openai/gpt-oss-20b:free:online"`.
+```php
+$chatData = new ChatData(
+    messages: [
+        new MessageData(
+            role: RoleType::USER,
+            content: 'What are the latest developments in AI?',
+        ),
+    ],
+    model: 'openai/gpt-4o:online',
+    web_search_options: new WebSearchOptionsData(
+        search_context_size: SearchContextSizeType::HIGH, // Optional: low, medium, high
+    ),
+);
+```
+
+`web_search_options` parameter in ChatData is optional, where you can customize the web search behavior
+as `search_context_size` can be set to `low`, `medium`, or `high` depending on how much web search context you want to include in the response.
+- `SearchContextSizeType::LOW` is for minimal search context, suitable for basic queries.
+- `SearchContextSizeType::MEDIUM` is for moderate amount of web search context.
+- `SearchContextSizeType::HIGH` is for extensive web search context.
+ 
+`:online` is a shortcut for using the web plugin, and is exactly equivalent to:
+```php
+$chatData = new ChatData(
+    messages: [
+        new MessageData(
+            role: RoleType::USER,
+            content: 'What are the latest developments in AI?',
+        ),
+    ],
+    model: 'openai/gpt-4o',
+    plugins: [
+        new PluginData(
+            id: 'web',
+            max_results: 5, // Optional: number of search results to retrieve
+            engine: 'undefined', // Optional: "native", "exa", or "undefined"
+        ),
+    ],
+    web_search_options: new WebSearchOptionsData(
+        search_context_size: SearchContextSizeType::MEDIUM, // Optional: low, medium, high
+    ),
+);
+```
+
+`engine` parameter in PluginData is optional, where you can specify the web search engine to be used:
+- `native`: Always uses the model provider’s built-in web search capabilities
+- `exa`: Uses Exa’s search API for web results
+- `undefined`: Uses native search if available for the provider, otherwise falls back to Exa
+
+And here is how **annotations** are included in the response when using **web search** where annotations contains `type`: `url_citation` and `url_citation`: {`url`, `title`, `content`, `start_index`, `end_index`}:
+
+```php
+$response = LaravelOpenRouter::chatRequest($chatData);
+
+$annotations = Arr::get($response->choices[0], 'message.annotations', []);
+```
 
 - #### File/Document Inputs
 

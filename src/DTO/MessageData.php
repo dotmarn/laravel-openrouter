@@ -70,7 +70,8 @@ final class MessageData extends DataTransferObject
             [
                 'content'   => is_array($this->content)
                     ? array_map(function ($value) {
-                        if ($value instanceof TextContentData
+                        if (
+                            $value instanceof TextContentData
                             || $value instanceof ImageContentPartData
                             || $value instanceof AudioContentData
                             || $value instanceof FileContentData
@@ -79,13 +80,13 @@ final class MessageData extends DataTransferObject
                         } else {
                             return $value;
                         }
-                        }, $this->content)
+                    }, $this->content)
                     : $this->content,
                 'role'      => $this->role,
                 'toolCalls' => ! is_null($this->toolCalls)
                     ? array_map(function ($value) {
                         return $value->convertToArray();
-                        }, $this->toolCalls)
+                    }, $this->toolCalls)
                     : null,
                 'name'      => $this->name,
             ],
@@ -93,3 +94,4 @@ final class MessageData extends DataTransferObject
         );
     }
 }
+
