@@ -48,7 +48,15 @@ final class MessageData extends DataTransferObject
          *
          * @var ToolCallData[]|null
          */
-        public ?array $toolCalls = null,
+        public ?array $tool_calls = null,
+
+        /**
+         * That is the identifier that connects the tool result back to the tool call the LLM requested.
+         * Used to specify which tool to call when multiple tools are provided.
+         *
+         * @var string|null
+         */
+        public ?string $tool_call_id = null,
 
         /**
          * An optional name for the participant. Provides the model information to differentiate between participants of the same role.
@@ -83,11 +91,12 @@ final class MessageData extends DataTransferObject
                     }, $this->content)
                     : $this->content,
                 'role'      => $this->role,
-                'toolCalls' => ! is_null($this->toolCalls)
+                'tool_calls' => ! is_null($this->tool_calls)
                     ? array_map(function ($value) {
                         return $value->convertToArray();
-                    }, $this->toolCalls)
+                    }, $this->tool_calls)
                     : null,
+                'tool_call_id' => $this->tool_call_id,
                 'name'      => $this->name,
             ],
             fn($value) => $value !== null
