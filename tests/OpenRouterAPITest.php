@@ -11,6 +11,7 @@ use MoeMizrak\LaravelOpenrouter\DTO\ChatData;
 use MoeMizrak\LaravelOpenrouter\DTO\CostResponseData;
 use MoeMizrak\LaravelOpenrouter\DTO\FileContentData;
 use MoeMizrak\LaravelOpenrouter\DTO\FileUrlData;
+use MoeMizrak\LaravelOpenrouter\DTO\FunctionData;
 use MoeMizrak\LaravelOpenrouter\DTO\ImageConfigData;
 use MoeMizrak\LaravelOpenrouter\DTO\ImageContentPartData;
 use MoeMizrak\LaravelOpenrouter\DTO\ImageUrlData;
@@ -23,6 +24,7 @@ use MoeMizrak\LaravelOpenrouter\DTO\ReasoningData;
 use MoeMizrak\LaravelOpenrouter\DTO\ResponseData;
 use MoeMizrak\LaravelOpenrouter\DTO\ResponseFormatData;
 use MoeMizrak\LaravelOpenrouter\DTO\TextContentData;
+use MoeMizrak\LaravelOpenrouter\DTO\ToolCallData;
 use MoeMizrak\LaravelOpenrouter\Exceptions\OpenRouterValidationException;
 use MoeMizrak\LaravelOpenrouter\Facades\LaravelOpenRouter;
 use MoeMizrak\LaravelOpenrouter\OpenRouterRequest;
@@ -31,6 +33,7 @@ use MoeMizrak\LaravelOpenrouter\Types\DataCollectionType;
 use MoeMizrak\LaravelOpenrouter\Types\EffortType;
 use MoeMizrak\LaravelOpenrouter\Types\RoleType;
 use MoeMizrak\LaravelOpenrouter\Types\RouteType;
+use MoeMizrak\LaravelOpenrouter\Types\ToolChoiceType;
 use PHPUnit\Framework\Attributes\Test;
 
 class OpenRouterAPITest extends TestCase
@@ -1206,6 +1209,125 @@ class OpenRouterAPITest extends TestCase
             max_tokens: $this->maxTokens,
             route: $route,
         );
+    }
+
+    #[Test]
+    public function it_makes_chat_completion_with_tool_definition()
+    {
+        /* SETUP */
+        $tools = [
+            new ToolCallData(
+                type: 'function',
+                function: new FunctionData(
+                    name: 'getWeather',
+                    description: 'Get the current weather for a location',
+                    parameters: [
+                        'type' => 'object',
+                        'properties' => [
+                            'location' => [
+                                'type' => 'string',
+                                'description' => 'The city name',
+                            ],
+                        ],
+                        'required' => ['location'],
+                    ],
+                ),
+            ),
+        ];
+        $chatData = new ChatData(
+            messages: [
+                new MessageData(
+                    content: 'What is the weather like in Tokyo?',
+                    role: RoleType::USER,
+                ),
+            ],
+            model: 'mistralai/devstral-2512:free',
+            max_tokens: $this->maxTokens,
+            tool_choice: ToolChoiceType::AUTO,
+            tools: $tools,
+        );
+        $mockBody = $this->mockBasicBody();
+        $mockBody['choices'][0]['message']['content'] = null;
+        $mockBody['choices'][0]['message']['tool_calls'] = [
+            [
+                'id' => 'call_7F3kP9',
+                'type' => 'function',
+                'function' => [
+                    'name' => 'getWeather',
+                    'arguments' => '{"location": "Tokyo"}',
+                ],
+            ],
+        ];
+        $mockBody['choices'][0]['finish_reason'] = 'tool_calls';
+        $this->mockOpenRouter($mockBody);
+
+        /* EXECUTE */
+        $response = $this->api->chatRequest($chatData);
+
+        /* ASSERT */
+        $this->generalTestAssertions($response);
+        $this->assertEquals(RoleType::ASSISTANT, Arr::get($response->choices[0], 'message.role'));
+        $this->assertNotNull(Arr::get($response->choices[0], 'message.tool_calls'));
+        $this->assertEquals('getWeather', Arr::get($response->choices[0], 'message.tool_calls.0.function.name'));
+        $this->assertEquals('{"location": "Tokyo"}', Arr::get($response->choices[0], 'message.tool_calls.0.function.arguments'));
+        $this->assertEquals('call_7F3kP9', Arr::get($response->choices[0], 'message.tool_calls.0.id'));
+        $this->assertEquals('tool_calls', Arr::get($response->choices[0], 'finish_reason'));
+    }
+
+    #[Test]
+    public function it_sends_tool_result_back_to_llm_and_gets_final_response()
+    {
+        /* SETUP */
+        $toolCallId = 'call_7F3kP9';
+        $userMessage = new MessageData(
+            content: 'What is the weather like in Tokyo?',
+            role: RoleType::USER,
+        );
+        $assistantToolCallMessage = new MessageData(
+            role: RoleType::ASSISTANT,
+            tool_calls: [
+                new ToolCallData(
+                    id: $toolCallId,
+                    type: 'function',
+                    function: new FunctionData(
+                        name: 'getWeather',
+                        arguments: '{"location": "Tokyo"}',
+                        description: 'Get weather',
+                        parameters: [],
+                    ),
+                ),
+            ],
+        );
+        $toolResponseMessage = new MessageData(
+            content: json_encode([
+                'temperature' => '22°C',
+                'condition' => 'Sunny',
+            ]),
+            role: RoleType::TOOL,
+            tool_call_id: $toolCallId,
+        );
+        $chatData = new ChatData(
+            messages: [
+                $userMessage,
+                $assistantToolCallMessage,
+                $toolResponseMessage,
+            ],
+            model: $this->model,
+            max_tokens: $this->maxTokens,
+        );
+        $mockBody = $this->mockBasicBody();
+        $mockBody['choices'][0]['message']['content'] = 'The weather in Tokyo is currently 22°C and Sunny.';
+        $this->mockOpenRouter($mockBody);
+
+        /* EXECUTE */
+        $response = $this->api->chatRequest($chatData);
+
+        /* ASSERT */
+        $this->generalTestAssertions($response);
+        $this->assertEquals(RoleType::ASSISTANT, Arr::get($response->choices[0], 'message.role'));
+        $this->assertNotNull(Arr::get($response->choices[0], 'message.content'));
+        $this->assertStringContainsString('22°C', Arr::get($response->choices[0], 'message.content'));
+        $this->assertStringContainsString('Sunny', Arr::get($response->choices[0], 'message.content'));
     }
 
     #[Test]

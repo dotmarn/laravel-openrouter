@@ -20,7 +20,7 @@ This Laravel package provides an easy-to-use interface for integrating **[OpenRo
 - [🎨 Usage](#-usage)
   - [Understanding ChatData DTO](#understanding-chatdata-dto)
     - [LLM Parameters](#llm-parameters)
-    - [Function-calling](#function-calling)
+    - [Tool Calling Parameters](#tool-calling-parameters)
     - [Additional Optional Parameters](#additional-optional-parameters)
     - [OpenRouter-only Parameters](#openrouter-only-parameters)
   - [Creating a ChatData Instance](#creating-a-chatdata-instance)
@@ -28,6 +28,7 @@ This Laravel package provides an easy-to-use interface for integrating **[OpenRo
     - [Chat Request](#chat-request)
       - [Stream Chat Request](#stream-chat-request)
       - [Maintaining Conversation Continuity](#maintaining-conversation-continuity)
+      - [Tool & Function Calling](#tool--function-calling)
       - [Structured Output](#structured-output)
       - [Web Search](#web-search)
       - [File/Document Inputs](#filedocument-inputs)
@@ -128,7 +129,7 @@ These properties control various aspects of the generated response (more [info](
 - **repetition_penalty** (float|null): A value between 0 and 2 for penalizing repetitive tokens.
 - **seed** (int|null): A value for deterministic sampling (OpenAI models only, in beta).
 
-#### Function-calling
+#### Tool-calling Parameters
 
 Only natively suported by OpenAI models. For others, we submit a YAML-formatted string with these tools at the end of the prompt.
 
@@ -522,6 +523,115 @@ Expected response:
 $content = Arr::get($response->choices[0], 'message.content');
 // content = You are Moe, a fictional character and AI Necromancer, as per the context of the conversation we've established. In reality, you are the user interacting with me, an assistant designed to help answer questions and engage in friendly conversation.
 ```
+
+- #### Tool & Function Calling
+    (Please also refer to [OpenRouter Document Function Calling](https://openrouter.ai/docs/guides/features/tool-calling) for more details and [models supporting tool calling](https://openrouter.ai/models?supported_parameters=tools))
+
+Tool calls (also known as function calls) give an LLM access to external tools. The LLM does not call the tools directly. Instead, it suggests the tool to call.
+
+>[!NOTE]
+> The user then calls the tool separately and provides the results back to the LLM.
+> Finally, the LLM formats the response into an answer to the user’s original question.
+
+This is an example of how to use tool calling with OpenRouter:
+
+```php
+// Define the tool using ToolCallData and FunctionData
+$tools = [
+    new ToolCallData(
+        type: 'function',
+        function: new FunctionData(
+            name: 'getWeather',
+            description: 'Get the current weather for a location',
+            parameters: [
+                'type' => 'object',
+                'properties' => [
+                    'location' => [
+                        'type' => 'string',
+                        'description' => 'The city name',
+                    ],
+                ],
+                'required' => ['location'],
+            ],
+        ),
+    ),
+];
+
+// Create chat request with tools
+$chatData = new ChatData(
+    messages: [
+        new MessageData(
+            role: RoleType::USER,
+            content: 'What is the weather like in Tokyo?',
+        ),
+    ],
+    model: 'openai/gpt-4o-mini',
+    tools: $tools,
+    tool_choice: 'auto',
+);
+
+// Send request, if tool call is suggested by LLM, call the tool and provide the result back to LLM as below
+$response = LaravelOpenRouter::chatRequest($chatData);
+
+// If LLM suggested tool call then extract the tool call returned from LLM
+$toolCall = $response['choices'][0]['message']['tool_calls'][0] ?? null;
+// the model/LLM generated ID
+$toolCallId = $toolCall['id']; // e.g. "call_7F3kP9"
+
+// Sample tool result assuming you called the tool and got the result
+$toolResult = [
+    'temperature' => '22°C',
+    'condition'   => 'Sunny',
+];
+
+// Provide tool result back to LLM:
+
+// The original user message
+$userMessage = new MessageData(
+    role: RoleType::USER,
+    content: 'What is the weather like in Tokyo?',
+);
+
+// Tool call assistant message with tool call ID
+$assistantToolCallMessage = new MessageData(
+    role: RoleType::ASSISTANT,
+    tool_calls: [
+        new ToolCallData(
+            id: $toolCallId,
+            type: 'function',
+            function: new FunctionCallData(
+                name: $toolCall['function']['name'],
+                arguments: $toolCall['function']['arguments'],
+            ),
+        ),
+    ],
+);
+
+// Tool response message with tool result and tool call ID
+$toolResponseMessage = new MessageData(
+    role: RoleType::TOOL,
+    tool_call_id: $toolCallId,
+    content: json_encode($toolResult),
+);
+
+$chatDataWithToolResult = new ChatData(
+    messages: [
+        $userMessage,
+        $assistantToolCallMessage,
+        $toolResponseMessage,
+    ],
+    model: 'openai/gpt-4o-mini',
+);
+
+// Send request with tool result
+$finalResponse = LaravelOpenRouter::chatRequest($chatDataWithToolResult);
+```
+
+> Basically it follows these steps:
+> 1. Define the tools and send the initial chat request including the tools and tool_choice optional parameters.
+> 2. If the LLM suggests a tool call, extract the tool call information from the response and make the actual tool call separately.
+> 3. Provide the tool result back to the LLM by creating a new chat request that includes the original user message, the assistant's tool call message, and the tool response message including the tool_call_id which is the ID generated by the model/LLM for the tool call.
+> 4. Send the new chat request to get the final response from the LLM.
 
 - #### Structured Output
 
