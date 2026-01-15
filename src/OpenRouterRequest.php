@@ -7,6 +7,7 @@ namespace MoeMizrak\LaravelOpenrouter;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Promise\PromiseInterface;
+use Illuminate\Support\Arr;
 use MoeMizrak\LaravelOpenrouter\DTO\ChatData;
 use MoeMizrak\LaravelOpenrouter\DTO\CostResponseData;
 use MoeMizrak\LaravelOpenrouter\DTO\ErrorData;
@@ -63,6 +64,20 @@ final class OpenRouterRequest extends OpenRouterAPI
 
         // Decode the json response
         $response = $this->openRouterHelper->jsonDecode($response);
+
+        if (is_null($response)) {
+            return new ErrorData(
+                code: 500,
+                message: 'Empty response from OpenRouter API.',
+            );
+        }
+
+        if (Arr::get($response, 'error')) {
+            return new ErrorData(
+                code: Arr::get($response, 'error.code', 500),
+                message: Arr::get($response, 'error.message', 'Unknown error from OpenRouter API.'),
+            );
+        }
 
         return $this->openRouterHelper->formChatResponse($response);
     }
