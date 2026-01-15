@@ -63,23 +63,24 @@ final class OpenRouterRequest extends OpenRouterAPI
         );
 
         // Decode the json response
-        $response = $this->openRouterHelper->jsonDecode($response);
+        $decoded = $this->openRouterHelper->jsonDecode($response);
 
-        if (is_null($response)) {
+        if ($decoded === null) {
             return new ErrorData(
                 code: 500,
                 message: 'Empty response from OpenRouter API.',
             );
         }
 
-        if (Arr::get($response, 'error')) {
+        if (Arr::get($decoded, 'error')) {
             return new ErrorData(
-                code: Arr::get($response, 'error.code', 500),
-                message: Arr::get($response, 'error.message', 'Unknown error from OpenRouter API.'),
+                code: Arr::get($decoded, 'error.code', 500),
+                message:Arr::get($decoded, 'error.message', 'Unknown error from OpenRouter API.'),
+                metadata: Arr::get($decoded, 'error.metadata'),
             );
         }
 
-        return $this->openRouterHelper->formChatResponse($response);
+        return $this->openRouterHelper->formChatResponse($decoded);
     }
 
     /**

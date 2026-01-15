@@ -28,7 +28,14 @@ final class ErrorData extends DataTransferObject
          *
          * @var string
          */
-        public string $message
+        public string $message,
+
+        /**
+         * Additional metadata about the error.
+         *
+         * @var array|null
+         */
+        public ?array $metadata = null
     ) {
         parent::__construct(...func_get_args());
     }

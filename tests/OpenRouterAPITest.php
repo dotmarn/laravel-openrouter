@@ -9,6 +9,7 @@ use Mockery\MockInterface;
 use MoeMizrak\LaravelOpenrouter\DTO\AudioContentData;
 use MoeMizrak\LaravelOpenrouter\DTO\ChatData;
 use MoeMizrak\LaravelOpenrouter\DTO\CostResponseData;
+use MoeMizrak\LaravelOpenrouter\DTO\ErrorData;
 use MoeMizrak\LaravelOpenrouter\DTO\FileContentData;
 use MoeMizrak\LaravelOpenrouter\DTO\FileUrlData;
 use MoeMizrak\LaravelOpenrouter\DTO\FunctionData;
@@ -1409,5 +1410,70 @@ class OpenRouterAPITest extends TestCase
 
         /* ASSERT */
         $this->generalTestAssertions($response);
+    }
+
+    #[Test]
+    public function it_returns_error_data_when_response_is_null()
+    {
+        /* SETUP */
+        $chatData = new ChatData(
+            messages: [
+                $this->messageData,
+            ],
+            model: $this->model,
+            max_tokens: $this->maxTokens,
+        );
+        $mockResponse = new Response(200, [], '');
+        $this->mock(ClientInterface::class, function (MockInterface $mock) use ($mockResponse) {
+            $mock->shouldReceive('request')
+                ->once()
+                ->andReturn($mockResponse);
+        });
+
+        /* EXECUTE */
+        $response = $this->api->chatRequest($chatData);
+
+        /* ASSERT */
+        $this->assertInstanceOf(ErrorData::class, $response);
+        $this->assertEquals(500, $response->code);
+        $this->assertEquals('Empty response from OpenRouter API.', $response->message);
+    }
+
+    #[Test]
+    public function it_returns_error_data_when_api_returns_error_response()
+    {
+        /* SETUP */
+        $chatData = new ChatData(
+            messages: [
+                $this->messageData,
+            ],
+            model: $this->model,
+            max_tokens: $this->maxTokens,
+        );
+        $errorBody = [
+            'error' => [
+                'message' => 'Provider returned error',
+                'code' => 502,
+                'metadata' => [
+                    'raw' => '{"id": "oTAvmmE-37", "error": {"message": "Internal server error", "type": "server_error"}}',
+                    'provider_name' => 'Together',
+                ],
+            ],
+            'user_id' => 'user_32kXS7KA',
+        ];
+        $this->mockOpenRouter($errorBody);
+
+        /* EXECUTE */
+        $response = $this->api->chatRequest($chatData);
+
+        /* ASSERT */
+        $this->assertInstanceOf(ErrorData::class, $response);
+        $this->assertEquals(502, $response->code);
+        $this->assertEquals('Provider returned error', $response->message);
+        $this->assertNotNull($response->metadata);
+        $this->assertIsArray($response->metadata);
+        $this->assertArrayHasKey('provider_name', $response->metadata);
+        $this->assertEquals('Together', $response->metadata['provider_name']);
+        $this->assertArrayHasKey('raw', $response->metadata);
     }
 }
